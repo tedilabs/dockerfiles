@@ -50,7 +50,7 @@ jobs:
 
     - name: Build Container Image
       id: build
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v4
       with:
         context: "{{defaultContext}}:${{ matrix.path }}"
         platforms: linux/amd64, linux/arm64
@@ -60,7 +60,7 @@ jobs:
 
     - name: Push Container Image
       id: push
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v4
       with:
         context: "{{defaultContext}}:doraemon"
         platforms: linux/amd64, linux/arm64
