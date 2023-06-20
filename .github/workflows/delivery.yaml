@@ -1,6 +1,7 @@
 name: Delivery
 
 on:
+  workflow_dispatch: {}
   schedule:
   - cron: "0 0 * * 0"
   push:
@@ -16,14 +17,23 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         include:
-        - { path: "doraemon" }
-        - { path: "slacktee" }
+        - path: "doraemon"
+          repository: "sre/doraemon"
+        - path: "slacktee"
+          repository: "sre/slacktee"
 
     steps:
-    # - name: Checkout
-    #   uses: actions/checkout@v3
+    - name: Configure AWS Credentials
+      id: configure-aws-credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ECR }}
+        mask-aws-account-id: false
+        role-skip-session-tagging: true
+        aws-region: ap-northeast-2
 
     - name: Set up QEMU
       id: setup-qemu
@@ -37,16 +47,21 @@ jobs:
       id: login-docker-hub
       uses: docker/login-action@v2
       with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-    - name: Login to GitHub Container Registry
-      id: login-ghcr
-      uses: docker/login-action@v2
-      with:
         registry: ghcr.io
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Prepare Docker Metadata
+      id: prepare-docker-metadata
+      uses: docker/metadata-action@v4
+      with:
+        images: |
+          ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.APP_CONTAINER_REPOSITORY }}
+        tags: |
+          type=raw,value=latest,enable={{is_default_branch}}
+          type=ref,event=pr
+          type=sha,prefix=,suffix=,format=short
+          type=match,pattern=(v.*),group=1,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
     - name: Build Container Image
       id: build
